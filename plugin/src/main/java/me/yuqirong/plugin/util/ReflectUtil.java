@@ -43,6 +43,17 @@ public class ReflectUtil {
         return null;
     }
 
+    public static Field getField(Class<?> clazz, String fieldName) {
+        try {
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static void setField(Class<?> clazz, Object object, String fieldName, Object fieldValue) {
         try {
             Field field = clazz.getDeclaredField(fieldName);

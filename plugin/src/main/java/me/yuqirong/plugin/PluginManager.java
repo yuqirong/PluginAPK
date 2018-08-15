@@ -1,15 +1,22 @@
 package me.yuqirong.plugin;
 
-import android.app.ActivityThread;
-import android.app.Instrumentation;
+import android.app.Application;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageParser;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.text.TextUtils;
 
 import java.io.File;
+import java.lang.reflect.Field;
 
-import me.yuqirong.plugin.constant.PluginConstant;
 import me.yuqirong.plugin.constant.PluginConstant.*;
-import me.yuqirong.plugin.hook.PluginInstrumentation;
+import me.yuqirong.plugin.entity.Plugin;
+import me.yuqirong.plugin.hook.PluginClassLoader;
+import me.yuqirong.plugin.hook.PluginContext;
+import me.yuqirong.plugin.hook.PluginEnvironment;
 import me.yuqirong.plugin.util.ReflectUtil;
 
 /**
@@ -40,48 +47,96 @@ public class PluginManager {
      * @param pluginApkPath
      * @return
      */
-    public boolean loadPluginApk(String pluginApkPath) {
+    public Plugin loadPluginApk(String pluginApkPath) {
         if (TextUtils.isEmpty(pluginApkPath)) {
-            return false;
+            return null;
         }
 
         File pluginApk = new File(pluginApkPath);
 
-//        if (!pluginApk.exists() || !pluginApk.isFile()) {
-//            return false;
-//        }
+        if (!pluginApk.exists() || !pluginApk.isFile()) {
+            return null;
+        }
 
-        initPluginEnvironmentIfNeed(context);
+        Plugin plugin = new Plugin();
+        plugin.mFilePath = pluginApkPath;
+        // init plugin environment
+        PluginEnvironment.initPluginEnvironmentIfNeed();
 
         // load apk
-
-        return true;
+        parsePluginPackage(plugin);
+        loadPluginResource(plugin);
+        createPluginClassLoader(plugin);
+        createPluginApplication(plugin);
+        return plugin;
     }
 
+    private void createPluginApplication(Plugin plugin) {
+        try {
+            ApplicationInfo applicationInfo = plugin.mPackage.applicationInfo;
+            String appClassName = applicationInfo.className;
+            if (appClassName == null) {
+                appClassName = Application.class.getName();
+            }
+            Application application = (Application) plugin.mClassLoader.loadClass(appClassName).newInstance();
+            plugin.mApplication = application;
 
-    private void initPluginEnvironmentIfNeed(Context context) {
-        ActivityThread activityThread = getActivityThread();
-        Instrumentation instrumentation = getInstrumentation(activityThread);
-        if (instrumentation != null && instrumentation instanceof PluginInstrumentation) {
-            //already init plugin environment
-            return;
+            // attach base context  TODO why ?
+            Field mBase = ReflectUtil.getField(ContextWrapper.class, FieldName.mBase);
+            if (mBase != null) {
+                mBase.set(application, new PluginContext(context.getApplicationContext(), plugin));
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
-        PluginInstrumentation pluginInstrumentation = new PluginInstrumentation(instrumentation);
-        setInstrumentation(activityThread, pluginInstrumentation);
     }
 
-    private void setInstrumentation(ActivityThread activityThread, PluginInstrumentation pluginInstrumentation) {
-        ReflectUtil.setField(activityThread.getClass(), activityThread, FieldName.mInstrumentation, pluginInstrumentation);
+    private void createPluginClassLoader(Plugin plugin) {
+        try {
+            File pluginApk = new File(plugin.mFilePath);
+            String dexPath = pluginApk.getParent() + "/dex";
+            File dexDir = new File(dexPath);
+            if (!dexDir.exists()) {
+                dexDir.mkdirs();
+            }
+            String libPath = pluginApk.getParent() + "/lib";
+            File libDir = new File(libPath);
+            if (!libDir.exists()) {
+                libDir.mkdirs();
+            }
+            PluginClassLoader pluginClassLoader = new PluginClassLoader(plugin.mFilePath,
+                    dexDir.getAbsolutePath(), libDir.getAbsolutePath(),
+                    ClassLoader.getSystemClassLoader().getParent());
+            plugin.mClassLoader = pluginClassLoader;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    private Instrumentation getInstrumentation(ActivityThread activityThread) {
-        return (Instrumentation) ReflectUtil.invokeMethod(ClassName.ActivityThread, activityThread, MethodName.getInstrumentation, null, null);
+    private void loadPluginResource(Plugin plugin) {
+        try {
+            AssetManager am = AssetManager.class.newInstance();
+            ReflectUtil.invokeMethod(ClassName.AssetManager, am, MethodName.addAssetPath,
+                    new Class[]{String.class}, new Object[]{plugin.mFilePath});
+            plugin.mAssetManager = am;
+            Resources hostRes = context.getResources();
+            Resources res = new Resources(am, hostRes.getDisplayMetrics(),
+                    hostRes.getConfiguration());
+            plugin.mResources = res;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    private ActivityThread getActivityThread() {
-        return (ActivityThread) ReflectUtil.invokeMethod(ClassName.ActivityThread, null, MethodName.currentActivityThread, null, null);
+    private void parsePluginPackage(Plugin plugin) {
+        try {
+            File pluginApk = new File(plugin.mFilePath);
+            PackageParser packageParser = new PackageParser();
+            PackageParser.Package pluginPackage = packageParser.parsePackage(pluginApk, PackageParser.PARSE_MUST_BE_APK);
+            plugin.mPackage = pluginPackage;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-
-
 
 }
