@@ -129,6 +129,7 @@ public class PluginManager {
     }
 
     private void parsePluginPackage(Plugin plugin) {
+        // 这里直接copy VirtualAPK 解析插件的方法
         try {
             File pluginApk = new File(plugin.mFilePath);
             PackageParser packageParser = new PackageParser();
