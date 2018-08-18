@@ -1,8 +1,10 @@
 package me.yuqirong.plugin;
 
 import android.app.Application;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageParser;
 import android.content.res.AssetManager;
@@ -11,12 +13,17 @@ import android.text.TextUtils;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 
+import me.yuqirong.plugin.constant.PluginConstant;
 import me.yuqirong.plugin.constant.PluginConstant.*;
 import me.yuqirong.plugin.entity.Plugin;
+import me.yuqirong.plugin.entity.PluginDataStorage;
 import me.yuqirong.plugin.hook.PluginClassLoader;
 import me.yuqirong.plugin.hook.PluginContext;
 import me.yuqirong.plugin.hook.PluginEnvironment;
+import me.yuqirong.plugin.hook.PluginShellActivity;
 import me.yuqirong.plugin.util.ReflectUtil;
 
 /**
@@ -28,6 +35,9 @@ public class PluginManager {
     private static PluginManager instance;
 
     private Context context;
+
+    // key = plugin package name
+    private Map<String, Plugin> pluginMap = new HashMap<>();
 
     private PluginManager(Context context) {
         //no instance
@@ -41,6 +51,10 @@ public class PluginManager {
         return instance;
     }
 
+    public Plugin getPlugin(String packageName) {
+        return pluginMap.get(packageName);
+    }
+
     /**
      * 加载插件apk
      *
@@ -51,7 +65,6 @@ public class PluginManager {
         if (TextUtils.isEmpty(pluginApkPath)) {
             return null;
         }
-
         File pluginApk = new File(pluginApkPath);
 
         if (!pluginApk.exists() || !pluginApk.isFile()) {
@@ -68,7 +81,30 @@ public class PluginManager {
         loadPluginResource(plugin);
         createPluginClassLoader(plugin);
         createPluginApplication(plugin);
+        // cache plugin
+        pluginMap.put(plugin.mPackage.packageName, plugin);
         return plugin;
+    }
+
+    public void startActivity(Context context, Plugin plugin, Intent intent) throws Exception {
+        if (plugin == null || intent == null) {
+            throw new Exception("plugin or intent cannot be null");
+        }
+        ComponentName component = intent.getComponent();
+        if (component == null) {
+            throw new Exception("component cannot be null");
+        }
+
+        PluginDataStorage pluginDataStorage = new PluginDataStorage();
+        pluginDataStorage.packageName = component.getPackageName();
+        pluginDataStorage.className = component.getClassName();
+
+        // replace activity
+        intent.putExtra(PluginConstant.PLUGIN_DATA, pluginDataStorage);
+        intent.setClass(context, PluginShellActivity.class);
+        intent.setExtrasClassLoader(PluginDataStorage.class.getClassLoader());
+
+        context.startActivity(intent);
     }
 
     private void createPluginApplication(Plugin plugin) {

@@ -1,5 +1,6 @@
 package me.yuqirong.myapplication;
 
+import android.content.Intent;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -10,9 +11,16 @@ import android.widget.Toast;
 import me.yuqirong.plugin.PluginManager;
 import me.yuqirong.plugin.entity.Plugin;
 
+/**
+ * @author Zhouyu
+ * @date 2018/8/14
+ */
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
+
+    private Plugin plugin;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,10 +28,26 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String pluginFilePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                final String pluginFilePath = Environment.getExternalStorageDirectory().getAbsolutePath()
                         + "/plugin-app-debug.apk";
-                Plugin plugin = PluginManager.getInstance(getApplication()).loadPluginApk(pluginFilePath);
+                plugin = PluginManager.getInstance(getApplication()).loadPluginApk(pluginFilePath);
                 Log.i(TAG, plugin.toString());
+            }
+        });
+
+        findViewById(R.id.button2).setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                try {
+                    if (plugin != null) {
+                        Intent intent = new Intent();
+                        intent.setClassName("org.crashhunter.minigallery", "org.crashhunter.minigallery.view.MiniActivity");
+                        PluginManager.getInstance(getApplication()).startActivity(MainActivity.this, plugin, intent);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
