@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 final String pluginFilePath = Environment.getExternalStorageDirectory().getAbsolutePath()
-                        + "/plugin-app-debug.apk";
+                        + "/app-debug.apk";
                 plugin = PluginManager.getInstance(getApplication()).loadPluginApk(pluginFilePath);
                 Log.i(TAG, plugin.toString());
             }
@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     if (plugin != null) {
                         Intent intent = new Intent();
-                        intent.setClassName("org.crashhunter.minigallery", "org.crashhunter.minigallery.view.MiniActivity");
+                        intent.setClassName("me.yuqirong.pluginapp", "me.yuqirong.pluginapp.PluginMainActivity");
                         PluginManager.getInstance(getApplication()).startActivity(MainActivity.this, plugin, intent);
                     }
                 } catch (Exception e) {

@@ -11,12 +11,14 @@ public final class PluginConstant {
     public interface ClassName {
         String ActivityThread = "android.app.ActivityThread";
         String AssetManager = "android.content.res.AssetManager";
+        String PackageParser = "android.content.pm.PackageParser";
     }
 
     public interface MethodName {
         String currentActivityThread = "currentActivityThread";
         String getInstrumentation = "getInstrumentation";
         String addAssetPath = "addAssetPath";
+        String collectCertificates = "collectCertificates";
     }
 
     public interface FieldName {

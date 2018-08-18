@@ -40,8 +40,10 @@ public class PluginInstrumentation extends Instrumentation {
             String pluginPackageName = dataStorage.packageName;
             Plugin plugin = PluginManager.getInstance(getContext()).getPlugin(pluginPackageName);
             // replace
-            classLoader = plugin.mClassLoader;
-            className = pluginClassName;
+            if (plugin != null) {
+                classLoader = plugin.mClassLoader;
+                className = pluginClassName;
+            }
         }
         return super.newActivity(classLoader, className, intent);
     }

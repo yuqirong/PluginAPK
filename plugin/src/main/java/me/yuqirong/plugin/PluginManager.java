@@ -1,6 +1,7 @@
 package me.yuqirong.plugin;
 
 import android.app.Application;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -13,6 +14,7 @@ import android.text.TextUtils;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -81,9 +83,27 @@ public class PluginManager {
         loadPluginResource(plugin);
         createPluginClassLoader(plugin);
         createPluginApplication(plugin);
+        // register broadcast receiver
+        registerBroadCastReceiver(plugin);
         // cache plugin
         pluginMap.put(plugin.mPackage.packageName, plugin);
         return plugin;
+    }
+
+    private void registerBroadCastReceiver(Plugin plugin) {
+        try {
+            ArrayList<PackageParser.Activity> receivers = plugin.mPackage.receivers;
+            for (PackageParser.Activity receiver : receivers) {
+                Object obj = Class.forName(receiver.getComponentName().getClassName(), false, plugin.mClassLoader).newInstance();
+                BroadcastReceiver broadcastReceiver = BroadcastReceiver.class.cast(obj);
+                // 注册广播
+                for (PackageParser.ActivityIntentInfo intentInfo : receiver.intents) {
+                    context.registerReceiver(broadcastReceiver, intentInfo);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void startActivity(Context context, Plugin plugin, Intent intent) throws Exception {
@@ -129,13 +149,12 @@ public class PluginManager {
 
     private void createPluginClassLoader(Plugin plugin) {
         try {
-            File pluginApk = new File(plugin.mFilePath);
-            String dexPath = pluginApk.getParent() + "/dex";
+            String dexPath = context.getCacheDir().getAbsolutePath() + "/plugin-dir/dex";
             File dexDir = new File(dexPath);
             if (!dexDir.exists()) {
                 dexDir.mkdirs();
             }
-            String libPath = pluginApk.getParent() + "/lib";
+            String libPath = context.getCacheDir().getAbsolutePath() + "/plugin-dir/lib";
             File libDir = new File(libPath);
             if (!libDir.exists()) {
                 libDir.mkdirs();
@@ -170,6 +189,8 @@ public class PluginManager {
             File pluginApk = new File(plugin.mFilePath);
             PackageParser packageParser = new PackageParser();
             PackageParser.Package pluginPackage = packageParser.parsePackage(pluginApk, PackageParser.PARSE_MUST_BE_APK);
+            ReflectUtil.invokeMethod(PluginConstant.ClassName.PackageParser, null, PluginConstant.MethodName.collectCertificates,
+                    new Class[]{PackageParser.Package.class, int.class}, new Object[]{pluginPackage, PackageParser.PARSE_MUST_BE_APK});
             plugin.mPackage = pluginPackage;
         } catch (Exception e) {
             e.printStackTrace();
