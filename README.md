@@ -247,5 +247,10 @@ private void registerBroadCastReceiver(Plugin plugin) {
 
 PackageParser 解析出来的 receivers 是插件的 BoardCastReceiver 。所以可以遍历 receivers ，然后一一调用 registerReceiver 进行注册即可。
 
+Thank you
+=========
 
+* [VirtualAPK](https://github.com/didi/VirtualAPK)
+* [android-pluginmgr](https://github.com/houkx/android-pluginmgr)
+* [滴滴插件化方案 VirtualApk 源码解析](https://blog.csdn.net/lmj623565791/article/details/75000580)
 
